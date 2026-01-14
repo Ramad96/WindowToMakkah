@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.2.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.3.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -122,17 +122,41 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
+            width: 120px;
+            height: 120px;
             z-index: 20;
             transition: transform 0.1s ease-out, opacity 0.3s ease-out;
             opacity: 0;
             visibility: hidden;
+            cursor: pointer;
+            touch-action: manipulation;
         }
 
         #qiblaDome.visible {
             opacity: 1;
             visibility: visible;
+        }
+
+        #qiblaDome.clicked .dome-icon {
+            animation: domePulse 0.5s ease-out;
+        }
+
+        @keyframes domePulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        #qiblaDome.clicked .dome-base,
+        #qiblaDome.clicked .dome-spire,
+        #qiblaDome.clicked .dome-crescent {
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .dome-icon {
@@ -146,10 +170,10 @@
             bottom: 0;
             left: 50%;
             transform: translateX(-50%);
-            width: 60px;
-            height: 45px;
+            width: 90px;
+            height: 68px;
             background: #00ff88;
-            border-radius: 30px 30px 0 0;
+            border-radius: 45px 45px 0 0;
             box-shadow: 0 0 30px rgba(0, 255, 136, 0.8), 0 0 60px rgba(0, 255, 136, 0.5);
         }
 
@@ -158,23 +182,23 @@
             top: 0;
             left: 50%;
             transform: translateX(-50%);
-            width: 8px;
-            height: 20px;
+            width: 12px;
+            height: 30px;
             background: #00ff88;
-            border-radius: 4px 4px 0 0;
+            border-radius: 6px 6px 0 0;
             box-shadow: 0 0 15px rgba(0, 255, 136, 0.8);
         }
 
         .dome-crescent {
             position: absolute;
-            top: -5px;
+            top: -8px;
             left: 50%;
             transform: translateX(-50%);
-            width: 20px;
-            height: 20px;
-            border: 3px solid #00ff88;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #00ff88;
             border-bottom: none;
-            border-radius: 20px 20px 0 0;
+            border-radius: 30px 30px 0 0;
             box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
         }
 
@@ -466,24 +490,24 @@
             }
 
             #qiblaDome {
-                width: 60px;
-                height: 60px;
+                width: 100px;
+                height: 100px;
             }
 
             .dome-base {
-                width: 45px;
-                height: 34px;
+                width: 75px;
+                height: 56px;
             }
 
             .dome-spire {
-                width: 6px;
-                height: 15px;
+                width: 10px;
+                height: 25px;
             }
 
             .dome-crescent {
-                width: 15px;
-                height: 15px;
-                border-width: 2px;
+                width: 25px;
+                height: 25px;
+                border-width: 3px;
             }
 
             #locationInput {
@@ -578,7 +602,7 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.2.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.3.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -639,6 +663,8 @@
         const searchResults = document.getElementById('searchResults');
         const useGPSBtn = document.getElementById('useGPSBtn');
         let selectedLocationName = null;
+        let domeClicked = false;
+        let domeColorState = 0; // 0 = green, 1 = blue, 2 = gold, back to 0
 
         // Calculate bearing from user location to Kaaba
         function calculateQiblaBearing(lat1, lon1, lat2, lon2) {
@@ -808,11 +834,18 @@
             const withinRange = Math.abs(normalizedAngle) <= 10;
             
             if (withinRange) {
-                // Show and center the dome when within range
+                // Show the dome when within range
                 qiblaDome.classList.add('visible');
-                // Center the dome (no horizontal offset when close)
-                const verticalOffset = -30; // Slightly up for better visibility
-                qiblaDome.style.transform = `translate(-50%, calc(-50% + ${verticalOffset}px))`;
+                
+                // Position dome at the Qibla direction (center aligns with Qibla)
+                // Calculate position based on normalized angle
+                // Use viewport dimensions to position in 3D space
+                const maxOffset = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+                const horizontalOffset = (normalizedAngle / 10) * maxOffset * 0.3; // Smaller offset since we're close
+                const verticalOffset = -40; // Position slightly up for better visibility
+                
+                // Apply transform - animation will temporarily override during click
+                qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px))`;
             } else {
                 // Hide the dome when outside the 10-degree range
                 qiblaDome.classList.remove('visible');
@@ -1042,6 +1075,51 @@
         // Initialize GPS button
         useGPSBtn.addEventListener('click', () => {
             requestGPSLocation();
+        });
+
+        // Handle dome click
+        qiblaDome.addEventListener('click', () => {
+            // Add clicked class for animation
+            qiblaDome.classList.add('clicked');
+            
+            // Cycle through colors: green -> blue -> gold -> green
+            domeColorState = (domeColorState + 1) % 3;
+            
+            let newColor;
+            switch(domeColorState) {
+                case 0:
+                    newColor = '#00ff88'; // Green
+                    break;
+                case 1:
+                    newColor = '#4488ff'; // Blue
+                    break;
+                case 2:
+                    newColor = '#ffaa00'; // Gold
+                    break;
+            }
+            
+            // Update all dome parts
+            const domeBase = qiblaDome.querySelector('.dome-base');
+            const domeSpire = qiblaDome.querySelector('.dome-spire');
+            const domeCrescent = qiblaDome.querySelector('.dome-crescent');
+            
+            if (domeBase) {
+                domeBase.style.background = newColor;
+                domeBase.style.boxShadow = `0 0 30px ${newColor}88, 0 0 60px ${newColor}50`;
+            }
+            if (domeSpire) {
+                domeSpire.style.background = newColor;
+                domeSpire.style.boxShadow = `0 0 15px ${newColor}88`;
+            }
+            if (domeCrescent) {
+                domeCrescent.style.borderColor = newColor;
+                domeCrescent.style.boxShadow = `0 0 10px ${newColor}88`;
+            }
+            
+            // Remove animation class after animation completes
+            setTimeout(() => {
+                qiblaDome.classList.remove('clicked');
+            }, 500);
         });
 
         // Handle page visibility (pause/resume)
