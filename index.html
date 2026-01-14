@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder - Window to Makkah</title>
+    <title>Qibla Finder v1.0.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -155,6 +155,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             z-index: 30;
             min-width: 280px;
+            max-width: 90%;
         }
 
         #degrees {
@@ -168,6 +169,34 @@
             font-size: 16px;
             color: #fff;
             font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-row:first-of-type {
+            border-top: none;
+            margin-top: 8px;
+        }
+
+        .info-label {
+            color: rgba(255, 255, 255, 0.7);
+            text-align: left;
+            flex: 1;
+        }
+
+        .info-value {
+            color: #fff;
+            font-weight: 600;
+            text-align: right;
+            flex: 1;
         }
 
         #status {
@@ -235,6 +264,101 @@
             transform: scale(0.95);
         }
 
+        #locationSearch {
+            margin: 20px 0;
+        }
+
+        #locationInput {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        #locationInput::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        #locationInput:focus {
+            outline: none;
+            border-color: #00ff88;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        #searchResults {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        #searchResults.active {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-name {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .search-result-details {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .location-option {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .location-option-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #00ff88;
+        }
+
+        .location-option button {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .location-option button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #00ff88;
+        }
+
         #error {
             position: absolute;
             top: 50%;
@@ -288,6 +412,10 @@
                 font-size: 14px;
             }
 
+            .info-row {
+                font-size: 12px;
+            }
+
             #instructions {
                 padding: 25px 20px;
             }
@@ -299,6 +427,31 @@
             .compass-circle {
                 width: 240px;
                 height: 240px;
+            }
+
+            #locationInput {
+                font-size: 14px;
+                padding: 10px 12px;
+            }
+
+            .location-option {
+                padding: 12px;
+            }
+
+            .location-option-title {
+                font-size: 14px;
+            }
+
+            .search-result-item {
+                padding: 10px 12px;
+            }
+
+            .search-result-name {
+                font-size: 14px;
+            }
+
+            .search-result-details {
+                font-size: 11px;
             }
         }
     </style>
@@ -319,6 +472,18 @@
             <div id="infoPanel">
                 <div id="degrees">0°</div>
                 <div id="qiblaLabel">This direction is Qibla</div>
+                <div class="info-row">
+                    <span class="info-label">Current Location:</span>
+                    <span class="info-value" id="currentLocationFallback">--</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Expected Qibla:</span>
+                    <span class="info-value" id="expectedQiblaFallback">--</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Current Direction:</span>
+                    <span class="info-value" id="currentDirectionFallback">--</span>
+                </div>
             </div>
         </div>
 
@@ -329,6 +494,18 @@
         <div id="infoPanel">
             <div id="degrees">0°</div>
             <div id="qiblaLabel">This direction is Qibla</div>
+            <div class="info-row">
+                <span class="info-label">Current Location:</span>
+                <span class="info-value" id="currentLocation">--</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Expected Qibla:</span>
+                <span class="info-value" id="expectedQibla">--</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Current Direction:</span>
+                <span class="info-value" id="currentDirection">--</span>
+            </div>
         </div>
 
         <div id="status" class="loading">Initializing...</div>
@@ -338,13 +515,30 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder</h2>
-            <p>This app needs access to:</p>
-            <p>📍 Your location (GPS)</p>
-            <p>🧭 Device orientation (compass)</p>
-            <p>📷 Camera (for AR view)</p>
-            <p>Point your phone forward and follow the green arrow to face Qibla.</p>
-            <button id="startBtn">Start</button>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.0.0</span></h2>
+            <p>Choose your location:</p>
+            
+            <div class="location-option">
+                <div class="location-option-title">📍 Search for a City</div>
+                <div id="locationSearch">
+                    <input type="text" id="locationInput" placeholder="Enter city name (e.g., London, New York, Dubai)">
+                    <div id="searchResults"></div>
+                </div>
+            </div>
+
+            <div class="location-option">
+                <div class="location-option-title">📍 Use Current Location (GPS)</div>
+                <button id="useGPSBtn">Use My Location</button>
+            </div>
+
+            <p style="margin-top: 20px; font-size: 14px; color: rgba(255, 255, 255, 0.7);">
+                This app also needs access to:<br>
+                🧭 Device orientation (compass)<br>
+                📷 Camera (for AR view)
+            </p>
+            <p style="margin-top: 15px; font-size: 13px; color: rgba(255, 255, 255, 0.6);">
+                Point your phone forward and follow the green arrow to face Qibla.
+            </p>
         </div>
 
         <div id="error"></div>
@@ -372,6 +566,16 @@
         const compassFallback = document.getElementById('compassFallback');
         const compassNeedle = document.getElementById('compassNeedle');
         const startBtn = document.getElementById('startBtn');
+        const currentLocationDisplay = document.getElementById('currentLocation');
+        const expectedQiblaDisplay = document.getElementById('expectedQibla');
+        const currentDirectionDisplay = document.getElementById('currentDirection');
+        const currentLocationFallback = document.getElementById('currentLocationFallback');
+        const expectedQiblaFallback = document.getElementById('expectedQiblaFallback');
+        const currentDirectionFallback = document.getElementById('currentDirectionFallback');
+        const locationInput = document.getElementById('locationInput');
+        const searchResults = document.getElementById('searchResults');
+        const useGPSBtn = document.getElementById('useGPSBtn');
+        let selectedLocationName = null;
 
         // Calculate bearing from user location to Kaaba
         function calculateQiblaBearing(lat1, lon1, lat2, lon2) {
@@ -389,6 +593,139 @@
 
             return bearing;
         }
+
+        // Format coordinates for display
+        function formatCoordinate(coord, isLat) {
+            const direction = isLat ? (coord >= 0 ? 'N' : 'S') : (coord >= 0 ? 'E' : 'W');
+            return `${Math.abs(coord).toFixed(4)}° ${direction}`;
+        }
+
+        // Update info displays
+        function updateInfoDisplays() {
+            if (userLat === null || userLon === null) {
+                currentLocationDisplay.textContent = '--';
+                currentLocationFallback.textContent = '--';
+                expectedQiblaDisplay.textContent = '--';
+                expectedQiblaFallback.textContent = '--';
+                return;
+            }
+
+            // Update location display - show city name if available, otherwise coordinates
+            let locationText;
+            if (selectedLocationName) {
+                locationText = `${selectedLocationName} (${formatCoordinate(userLat, true)}, ${formatCoordinate(userLon, false)})`;
+            } else {
+                locationText = `${formatCoordinate(userLat, true)}, ${formatCoordinate(userLon, false)}`;
+            }
+            currentLocationDisplay.textContent = locationText;
+            currentLocationFallback.textContent = locationText;
+
+            // Update expected Qibla direction
+            const expectedQiblaText = `${Math.round(qiblaBearing)}°`;
+            expectedQiblaDisplay.textContent = expectedQiblaText;
+            expectedQiblaFallback.textContent = expectedQiblaText;
+        }
+
+        // Geocode city name to coordinates using OpenStreetMap Nominatim
+        async function geocodeCity(cityName) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=5`,
+                    {
+                        headers: {
+                            'User-Agent': 'QiblaFinder/1.0'
+                        }
+                    }
+                );
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Geocoding error:', error);
+                showError('Failed to search for location. Please try again.');
+                return [];
+            }
+        }
+
+        // Handle location input
+        let searchTimeout;
+        locationInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            
+            clearTimeout(searchTimeout);
+            
+            if (query.length < 2) {
+                searchResults.classList.remove('active');
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                statusDisplay.textContent = 'Searching for location...';
+                statusDisplay.className = 'loading';
+                
+                const results = await geocodeCity(query);
+                
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div class="search-result-item" style="color: rgba(255,255,255,0.5);">No results found</div>';
+                    searchResults.classList.add('active');
+                    statusDisplay.textContent = '';
+                    statusDisplay.className = '';
+                    return;
+                }
+
+                searchResults.innerHTML = results.map(result => {
+                    const name = result.display_name.split(',')[0];
+                    const details = result.display_name.split(',').slice(1, 3).join(',').trim();
+                    return `
+                        <div class="search-result-item" data-lat="${result.lat}" data-lon="${result.lon}" data-name="${result.display_name}">
+                            <div class="search-result-name">${name}</div>
+                            <div class="search-result-details">${details}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Add click handlers
+                searchResults.querySelectorAll('.search-result-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const lat = parseFloat(item.dataset.lat);
+                        const lon = parseFloat(item.dataset.lon);
+                        const name = item.dataset.name;
+                        
+                        userLat = lat;
+                        userLon = lon;
+                        selectedLocationName = name.split(',')[0];
+                        locationAvailable = true;
+                        qiblaBearing = calculateQiblaBearing(userLat, userLon, KAABA_LAT, KAABA_LON);
+                        
+                        locationInput.value = selectedLocationName;
+                        searchResults.classList.remove('active');
+                        
+                        statusDisplay.textContent = `Location set: ${selectedLocationName} ✓`;
+                        statusDisplay.className = '';
+                        
+                        // Hide instructions
+                        instructions.classList.add('hidden');
+                        
+                        updateInfoDisplays();
+                        updateArrow();
+                        
+                        // Start camera and orientation
+                        requestCamera();
+                        requestOrientation();
+                    });
+                });
+
+                searchResults.classList.add('active');
+                statusDisplay.textContent = '';
+                statusDisplay.className = '';
+            }, 500);
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!locationInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.classList.remove('active');
+            }
+        });
 
         // Update arrow direction
         function updateArrow() {
@@ -413,6 +750,14 @@
             const degrees = Math.round(qiblaBearing);
             degreesDisplay.textContent = `${degrees}°`;
 
+            // Update info displays
+            updateInfoDisplays();
+
+            // Update current direction
+            const currentDirectionText = `${Math.round(deviceHeading)}°`;
+            currentDirectionDisplay.textContent = currentDirectionText;
+            currentDirectionFallback.textContent = currentDirectionText;
+
             // Update status
             if (Math.abs(normalizedAngle) < 5) {
                 statusDisplay.textContent = '✓ You are facing Qibla!';
@@ -423,8 +768,8 @@
             }
         }
 
-        // Request location
-        function requestLocation() {
+        // Request GPS location
+        function requestGPSLocation() {
             if (!navigator.geolocation) {
                 showError('Geolocation is not supported by your browser.');
                 return;
@@ -437,11 +782,19 @@
                 (position) => {
                     userLat = position.coords.latitude;
                     userLon = position.coords.longitude;
+                    selectedLocationName = null; // Clear city name when using GPS
                     locationAvailable = true;
                     qiblaBearing = calculateQiblaBearing(userLat, userLon, KAABA_LAT, KAABA_LON);
                     statusDisplay.textContent = 'Location detected ✓';
                     statusDisplay.className = '';
+                    // Update displays even if device heading not yet available
+                    updateInfoDisplays();
                     updateArrow();
+                    
+                    // Hide instructions and start camera/orientation
+                    instructions.classList.add('hidden');
+                    requestCamera();
+                    requestOrientation();
                 },
                 (error) => {
                     let errorMsg = 'Location access denied. ';
@@ -565,48 +918,19 @@
             }, 5000);
         }
 
-        // Start the app
-        function startApp() {
-            instructions.classList.add('hidden');
-            statusDisplay.textContent = 'Requesting permissions...';
-            statusDisplay.className = 'loading';
-
-            // Request all permissions
-            requestLocation();
-            requestCamera();
-            requestOrientation();
-
-            // Watch location for updates
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(
-                    (position) => {
-                        userLat = position.coords.latitude;
-                        userLon = position.coords.longitude;
-                        qiblaBearing = calculateQiblaBearing(userLat, userLon, KAABA_LAT, KAABA_LON);
-                        updateArrow();
-                    },
-                    (error) => {
-                        console.log('Location watch error:', error);
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        maximumAge: 60000
-                    }
-                );
-            }
-        }
-
-        // Initialize
-        startBtn.addEventListener('click', startApp);
+        // Initialize GPS button
+        useGPSBtn.addEventListener('click', () => {
+            requestGPSLocation();
+        });
 
         // Handle page visibility (pause/resume)
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 // Page is hidden, could pause updates
             } else {
-                // Page is visible, refresh location if needed
-                if (userLat === null || userLon === null) {
-                    requestLocation();
+                // Page is visible, refresh location if needed (only if using GPS)
+                if ((userLat === null || userLon === null) && !selectedLocationName) {
+                    // Only refresh if not using a manually selected city
                 }
             }
         });
