@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.0.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.1.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -117,29 +117,58 @@
             z-index: 10;
         }
 
-        #qiblaArrow {
+        #qiblaDome {
             position: absolute;
-            width: 80%;
-            max-width: 400px;
-            height: 4px;
-            background: linear-gradient(90deg, transparent, #00ff88, transparent);
-            box-shadow: 0 0 20px #00ff88, 0 0 40px #00ff88;
-            transform-origin: center;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
             z-index: 20;
+            transition: transform 0.1s ease-out;
         }
 
-        #qiblaArrow::before {
-            content: '';
+        .dome-icon {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .dome-base {
             position: absolute;
-            right: -20px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 0;
-            height: 0;
-            border-left: 30px solid #00ff88;
-            border-top: 15px solid transparent;
-            border-bottom: 15px solid transparent;
-            filter: drop-shadow(0 0 10px #00ff88);
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 45px;
+            background: #00ff88;
+            border-radius: 30px 30px 0 0;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.8), 0 0 60px rgba(0, 255, 136, 0.5);
+        }
+
+        .dome-spire {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 20px;
+            background: #00ff88;
+            border-radius: 4px 4px 0 0;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.8);
+        }
+
+        .dome-crescent {
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            border: 3px solid #00ff88;
+            border-bottom: none;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
         }
 
         #infoPanel {
@@ -429,6 +458,27 @@
                 height: 240px;
             }
 
+            #qiblaDome {
+                width: 60px;
+                height: 60px;
+            }
+
+            .dome-base {
+                width: 45px;
+                height: 34px;
+            }
+
+            .dome-spire {
+                width: 6px;
+                height: 15px;
+            }
+
+            .dome-crescent {
+                width: 15px;
+                height: 15px;
+                border-width: 2px;
+            }
+
             #locationInput {
                 font-size: 14px;
                 padding: 10px 12px;
@@ -488,7 +538,13 @@
         </div>
 
         <div id="overlay">
-            <div id="qiblaArrow"></div>
+            <div id="qiblaDome">
+                <div class="dome-icon">
+                    <div class="dome-spire"></div>
+                    <div class="dome-crescent"></div>
+                    <div class="dome-base"></div>
+                </div>
+            </div>
         </div>
 
         <div id="infoPanel">
@@ -515,7 +571,7 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.0.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.1.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -537,7 +593,7 @@
                 📷 Camera (for AR view)
             </p>
             <p style="margin-top: 15px; font-size: 13px; color: rgba(255, 255, 255, 0.6);">
-                Point your phone forward and follow the green arrow to face Qibla.
+                Point your phone forward and turn to face the green dome to find Qibla.
             </p>
         </div>
 
@@ -558,7 +614,7 @@
         let locationAvailable = false;
 
         const video = document.getElementById('video');
-        const qiblaArrow = document.getElementById('qiblaArrow');
+        const qiblaDome = document.getElementById('qiblaDome');
         const degreesDisplay = document.getElementById('degrees');
         const statusDisplay = document.getElementById('status');
         const instructions = document.getElementById('instructions');
@@ -727,14 +783,13 @@
             }
         });
 
-        // Update arrow direction
+        // Update dome position
         function updateArrow() {
             if (userLat === null || userLon === null) return;
 
-            // Calculate angle to rotate arrow
+            // Calculate angle difference between Qibla direction and device heading
             // Device heading is clockwise from north (0-360)
             // Qibla bearing is also clockwise from north (0-360)
-            // Arrow should point in the direction: qiblaBearing - deviceHeading
             const angle = qiblaBearing - deviceHeading;
             
             // Normalize angle to -180 to 180
@@ -742,8 +797,22 @@
             while (normalizedAngle > 180) normalizedAngle -= 360;
             while (normalizedAngle < -180) normalizedAngle += 360;
 
-            // Rotate arrow
-            qiblaArrow.style.transform = `rotate(${normalizedAngle}deg)`;
+            // Position dome horizontally based on angle
+            // When facing Qibla (angle = 0), dome is centered
+            // When off to the left (negative angle), dome moves right (positive translateX)
+            // When off to the right (positive angle), dome moves left (negative translateX)
+            // Use viewport width to calculate offset - max offset is about 40% of screen width
+            const maxOffset = window.innerWidth * 0.4;
+            const horizontalOffset = (normalizedAngle / 180) * maxOffset;
+            
+            // Also adjust vertical position slightly based on how close you are
+            // When very close to Qibla, move dome slightly up (appears closer)
+            const verticalOffset = Math.abs(normalizedAngle) < 10 ? -30 : 0;
+            
+            // Position the dome
+            qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px))`;
+            
+            // Update compass needle for fallback view
             compassNeedle.style.transform = `translate(-50%, -100%) rotate(${normalizedAngle}deg)`;
 
             // Update degrees display
@@ -763,7 +832,7 @@
                 statusDisplay.textContent = '✓ You are facing Qibla!';
                 statusDisplay.style.color = '#00ff88';
             } else {
-                statusDisplay.textContent = 'Point your device in the direction of the arrow';
+                statusDisplay.textContent = 'Turn to face the green dome';
                 statusDisplay.style.color = '#fff';
             }
         }
