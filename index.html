@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.5.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.6.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -121,11 +121,11 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) perspective(2000px) translateZ(-800px) scale(2.5);
-            width: 80%;
-            max-width: 600px;
-            height: 60vh;
-            max-height: 500px;
+            transform: translate(-50%, -50%) perspective(2000px) translateZ(-1200px) scale(3.5);
+            width: 150%;
+            max-width: 1200px;
+            height: 120vh;
+            max-height: 1000px;
             z-index: 20;
             transition: transform 0.1s ease-out, opacity 0.3s ease-out;
             opacity: 0;
@@ -144,98 +144,132 @@
             width: 100%;
             height: 100%;
             position: relative;
-            background: rgba(255, 255, 255, 0.1);
-            border: 8px solid rgba(255, 255, 255, 0.3);
-            border-radius: 12px;
-            backdrop-filter: blur(20px);
+            background: #8B4513;
+            border: 20px solid #654321;
+            border-radius: 8px;
             box-shadow: 
-                0 0 40px rgba(0, 255, 136, 0.4),
-                inset 0 0 60px rgba(255, 255, 255, 0.1),
-                0 20px 60px rgba(0, 0, 0, 0.5);
+                0 0 60px rgba(0, 0, 0, 0.6),
+                inset 0 0 40px rgba(0, 0, 0, 0.3),
+                0 30px 80px rgba(0, 0, 0, 0.5);
             overflow: hidden;
+            background-image: 
+                linear-gradient(90deg, rgba(0, 0, 0, 0.1) 0%, transparent 2px, transparent calc(100% - 2px), rgba(0, 0, 0, 0.1) 100%),
+                linear-gradient(0deg, rgba(0, 0, 0, 0.1) 0%, transparent 2px, transparent calc(100% - 2px), rgba(0, 0, 0, 0.1) 100%);
+            background-size: 40px 40px;
         }
 
-        .window-glass {
+        .window-panes {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%),
-                repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 2px,
-                    rgba(255, 255, 255, 0.03) 2px,
-                    rgba(255, 255, 255, 0.03) 4px
-                );
-            backdrop-filter: blur(15px);
-            z-index: 2;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 8px;
+            z-index: 1;
+        }
+
+        .window-pane {
+            background: rgba(200, 220, 255, 0.1);
+            border: 3px solid rgba(139, 69, 19, 0.5);
+            backdrop-filter: blur(2px);
+        }
+
+        .window-shutters {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            z-index: 3;
             pointer-events: none;
         }
 
-        .window-doors {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 3;
-        }
-
-        .window-door-left,
-        .window-door-right {
+        .window-shutter-left,
+        .window-shutter-right {
             position: absolute;
             top: 0;
             width: 50%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(20px);
-            border-right: 4px solid rgba(255, 255, 255, 0.2);
-            transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-origin: left center;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+            background: #8B4513;
+            border: 4px solid #654321;
+            box-shadow: 
+                0 0 20px rgba(0, 0, 0, 0.5),
+                inset 0 0 30px rgba(0, 0, 0, 0.3);
+            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center;
+            background-image: 
+                repeating-linear-gradient(90deg, 
+                    transparent 0px,
+                    transparent 8px,
+                    rgba(0, 0, 0, 0.1) 8px,
+                    rgba(0, 0, 0, 0.1) 10px
+                );
         }
 
-        .window-door-right {
+        .window-shutter-left {
+            left: 0;
+            border-right: 6px solid #654321;
+        }
+
+        .window-shutter-right {
             right: 0;
-            left: auto;
-            border-right: none;
-            border-left: 4px solid rgba(255, 255, 255, 0.2);
-            transform-origin: right center;
+            border-left: 6px solid #654321;
         }
 
-        #qiblaDome.opened .window-door-left {
-            transform: translateX(-100%) rotateY(-90deg);
+        .window-shutter-left::before,
+        .window-shutter-right::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40px;
+            height: 40px;
+            background: #654321;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
         }
 
-        #qiblaDome.opened .window-door-right {
-            transform: translateX(100%) rotateY(90deg);
+        .window-shutter-left::before {
+            right: 20px;
+        }
+
+        .window-shutter-right::before {
+            left: 20px;
+        }
+
+        #qiblaDome.opened .window-shutter-left {
+            transform: translateX(-100%);
+        }
+
+        #qiblaDome.opened .window-shutter-right {
+            transform: translateX(100%);
         }
 
         .makkah-image {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
             background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
-            background-image: url('https://images.unsplash.com/photo-1605540436563-5bca919ae766?w=800&h=600&fit=crop&q=90');
+            background-image: url('https://images.unsplash.com/photo-1605540436563-5bca919ae766?w=1200&h=900&fit=crop&q=90');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.8s ease-out 0.4s, visibility 0s 1.2s;
-            z-index: 1;
-            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3);
+            transition: opacity 0.8s ease-out 0.5s, visibility 0s 1.5s;
+            z-index: 2;
+            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.2);
         }
 
         #qiblaDome.opened .makkah-image {
             opacity: 1;
             visibility: visible;
-            transition: opacity 0.8s ease-out 0.4s, visibility 0s 0s;
+            transition: opacity 0.8s ease-out 0.5s, visibility 0s 0s;
         }
 
         #infoPanel {
@@ -526,8 +560,40 @@
             }
 
             #qiblaDome {
-                width: 100px;
-                height: 100px;
+                width: 140%;
+                max-width: 1000px;
+                height: 110vh;
+                max-height: 900px;
+            }
+
+            .window-frame {
+                border-width: 15px;
+            }
+
+            .window-panes {
+                top: 15px;
+                left: 15px;
+                right: 15px;
+                bottom: 15px;
+                gap: 6px;
+            }
+
+            .window-pane {
+                border-width: 2px;
+            }
+
+            .window-shutters {
+                top: 15px;
+                left: 15px;
+                right: 15px;
+                bottom: 15px;
+            }
+
+            .makkah-image {
+                top: 15px;
+                left: 15px;
+                right: 15px;
+                bottom: 15px;
             }
 
 
@@ -592,11 +658,16 @@
         <div id="overlay">
             <div id="qiblaDome">
                 <div class="window-frame">
+                    <div class="window-panes">
+                        <div class="window-pane"></div>
+                        <div class="window-pane"></div>
+                        <div class="window-pane"></div>
+                        <div class="window-pane"></div>
+                    </div>
                     <div class="makkah-image"></div>
-                    <div class="window-glass"></div>
-                    <div class="window-doors">
-                        <div class="window-door-left"></div>
-                        <div class="window-door-right"></div>
+                    <div class="window-shutters">
+                        <div class="window-shutter-left"></div>
+                        <div class="window-shutter-right"></div>
                     </div>
                 </div>
             </div>
@@ -626,7 +697,7 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.5.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.6.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -866,8 +937,8 @@
                 const horizontalOffset = (normalizedAngle / 10) * maxOffset * 0.3; // Smaller offset since we're close
                 const verticalOffset = -20; // Position slightly up for better visibility
                 
-                // Apply transform with perspective to make it appear far away and large
-                qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px)) perspective(2000px) translateZ(-800px) scale(2.5)`;
+                // Apply transform with perspective to make it appear far away and very large
+                qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px)) perspective(2000px) translateZ(-1200px) scale(3.5)`;
             } else {
                 // Hide the window when outside the 10-degree range
                 qiblaDome.classList.remove('visible');
