@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Qibla Finder - Window to Makkah</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #video {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: cover;
+        }
+
+        #compassFallback {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #compassFallback.active {
+            display: flex;
+        }
+
+        .compass-circle {
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+        }
+
+        .compass-needle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: center;
+            width: 4px;
+            height: 120px;
+            background: #ff4444;
+            transform: translate(-50%, -100%);
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+        }
+
+        .compass-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            border: 3px solid #ff4444;
+        }
+
+        .compass-marker {
+            position: absolute;
+            font-size: 18px;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .compass-marker.n { top: 10px; left: 50%; transform: translateX(-50%); }
+        .compass-marker.e { right: 10px; top: 50%; transform: translateY(-50%); }
+        .compass-marker.s { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .compass-marker.w { left: 10px; top: 50%; transform: translateY(-50%); }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        #qiblaArrow {
+            position: absolute;
+            width: 80%;
+            max-width: 400px;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #00ff88, transparent);
+            box-shadow: 0 0 20px #00ff88, 0 0 40px #00ff88;
+            transform-origin: center;
+            z-index: 20;
+        }
+
+        #qiblaArrow::before {
+            content: '';
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 30px solid #00ff88;
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            filter: drop-shadow(0 0 10px #00ff88);
+        }
+
+        #infoPanel {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 30;
+            min-width: 280px;
+        }
+
+        #degrees {
+            font-size: 32px;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 5px;
+        }
+
+        #qiblaLabel {
+            font-size: 16px;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #fff;
+            text-align: center;
+            max-width: 90%;
+            z-index: 30;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 90%;
+            z-index: 100;
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #instructions.hidden {
+            display: none;
+        }
+
+        #instructions h2 {
+            margin-bottom: 20px;
+            color: #00ff88;
+            font-size: 24px;
+        }
+
+        #instructions p {
+            margin-bottom: 15px;
+            line-height: 1.6;
+            color: #fff;
+        }
+
+        #instructions button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #instructions button:active {
+            transform: scale(0.95);
+        }
+
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 68, 68, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 90%;
+            z-index: 200;
+            display: none;
+        }
+
+        #error.active {
+            display: block;
+        }
+
+        #disclaimer {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            max-width: 85%;
+            z-index: 30;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading {
+            color: #00ff88;
+        }
+
+        @media (max-width: 480px) {
+            #infoPanel {
+                top: 10px;
+                padding: 12px 20px;
+                min-width: 260px;
+            }
+
+            #degrees {
+                font-size: 28px;
+            }
+
+            #qiblaLabel {
+                font-size: 14px;
+            }
+
+            #instructions {
+                padding: 25px 20px;
+            }
+
+            #instructions h2 {
+                font-size: 20px;
+            }
+
+            .compass-circle {
+                width: 240px;
+                height: 240px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <video id="video" autoplay playsinline></video>
+        
+        <div id="compassFallback">
+            <div class="compass-circle">
+                <div class="compass-marker n">N</div>
+                <div class="compass-marker e">E</div>
+                <div class="compass-marker s">S</div>
+                <div class="compass-marker w">W</div>
+                <div class="compass-needle" id="compassNeedle"></div>
+                <div class="compass-center"></div>
+            </div>
+            <div id="infoPanel">
+                <div id="degrees">0°</div>
+                <div id="qiblaLabel">This direction is Qibla</div>
+            </div>
+        </div>
+
+        <div id="overlay">
+            <div id="qiblaArrow"></div>
+        </div>
+
+        <div id="infoPanel">
+            <div id="degrees">0°</div>
+            <div id="qiblaLabel">This direction is Qibla</div>
+        </div>
+
+        <div id="status" class="loading">Initializing...</div>
+
+        <div id="disclaimer">
+            Compass accuracy depends on device calibration. For best results, calibrate your device's compass.
+        </div>
+
+        <div id="instructions">
+            <h2>Qibla Finder</h2>
+            <p>This app needs access to:</p>
+            <p>📍 Your location (GPS)</p>
+            <p>🧭 Device orientation (compass)</p>
+            <p>📷 Camera (for AR view)</p>
+            <p>Point your phone forward and follow the green arrow to face Qibla.</p>
+            <button id="startBtn">Start</button>
+        </div>
+
+        <div id="error"></div>
+    </div>
+
+    <script>
+        // Kaaba coordinates in Makkah
+        const KAABA_LAT = 21.4225;
+        const KAABA_LON = 39.8262;
+
+        let userLat = null;
+        let userLon = null;
+        let deviceHeading = 0;
+        let qiblaBearing = 0;
+        let cameraAvailable = false;
+        let orientationAvailable = false;
+        let locationAvailable = false;
+
+        const video = document.getElementById('video');
+        const qiblaArrow = document.getElementById('qiblaArrow');
+        const degreesDisplay = document.getElementById('degrees');
+        const statusDisplay = document.getElementById('status');
+        const instructions = document.getElementById('instructions');
+        const errorDisplay = document.getElementById('error');
+        const compassFallback = document.getElementById('compassFallback');
+        const compassNeedle = document.getElementById('compassNeedle');
+        const startBtn = document.getElementById('startBtn');
+
+        // Calculate bearing from user location to Kaaba
+        function calculateQiblaBearing(lat1, lon1, lat2, lon2) {
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const lat1Rad = lat1 * Math.PI / 180;
+            const lat2Rad = lat2 * Math.PI / 180;
+
+            const y = Math.sin(dLon) * Math.cos(lat2Rad);
+            const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
+                      Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
+            let bearing = Math.atan2(y, x);
+            bearing = bearing * 180 / Math.PI;
+            bearing = (bearing + 360) % 360;
+
+            return bearing;
+        }
+
+        // Update arrow direction
+        function updateArrow() {
+            if (userLat === null || userLon === null) return;
+
+            // Calculate angle to rotate arrow
+            // Device heading is clockwise from north (0-360)
+            // Qibla bearing is also clockwise from north (0-360)
+            // Arrow should point in the direction: qiblaBearing - deviceHeading
+            const angle = qiblaBearing - deviceHeading;
+            
+            // Normalize angle to -180 to 180
+            let normalizedAngle = angle;
+            while (normalizedAngle > 180) normalizedAngle -= 360;
+            while (normalizedAngle < -180) normalizedAngle += 360;
+
+            // Rotate arrow
+            qiblaArrow.style.transform = `rotate(${normalizedAngle}deg)`;
+            compassNeedle.style.transform = `translate(-50%, -100%) rotate(${normalizedAngle}deg)`;
+
+            // Update degrees display
+            const degrees = Math.round(qiblaBearing);
+            degreesDisplay.textContent = `${degrees}°`;
+
+            // Update status
+            if (Math.abs(normalizedAngle) < 5) {
+                statusDisplay.textContent = '✓ You are facing Qibla!';
+                statusDisplay.style.color = '#00ff88';
+            } else {
+                statusDisplay.textContent = 'Point your device in the direction of the arrow';
+                statusDisplay.style.color = '#fff';
+            }
+        }
+
+        // Request location
+        function requestLocation() {
+            if (!navigator.geolocation) {
+                showError('Geolocation is not supported by your browser.');
+                return;
+            }
+
+            statusDisplay.textContent = 'Requesting location...';
+            statusDisplay.className = 'loading';
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLat = position.coords.latitude;
+                    userLon = position.coords.longitude;
+                    locationAvailable = true;
+                    qiblaBearing = calculateQiblaBearing(userLat, userLon, KAABA_LAT, KAABA_LON);
+                    statusDisplay.textContent = 'Location detected ✓';
+                    statusDisplay.className = '';
+                    updateArrow();
+                },
+                (error) => {
+                    let errorMsg = 'Location access denied. ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg += 'Please enable location access in your browser settings.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg += 'Location information unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg += 'Location request timed out.';
+                            break;
+                        default:
+                            errorMsg += 'An unknown error occurred.';
+                            break;
+                    }
+                    showError(errorMsg);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        // Request camera access
+        function requestCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                // Camera not available, use compass fallback
+                cameraAvailable = false;
+                video.style.display = 'none';
+                compassFallback.classList.add('active');
+                return;
+            }
+
+            statusDisplay.textContent = 'Requesting camera access...';
+            statusDisplay.className = 'loading';
+
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            })
+            .then((stream) => {
+                video.srcObject = stream;
+                cameraAvailable = true;
+                video.style.display = 'block';
+                compassFallback.classList.remove('active');
+                statusDisplay.textContent = 'Camera active ✓';
+                statusDisplay.className = '';
+            })
+            .catch((error) => {
+                console.log('Camera error:', error);
+                cameraAvailable = false;
+                video.style.display = 'none';
+                compassFallback.classList.add('active');
+                statusDisplay.textContent = 'Using compass view (camera unavailable)';
+                statusDisplay.className = '';
+            });
+        }
+
+        // Request device orientation
+        function requestOrientation() {
+            if (typeof DeviceOrientationEvent === 'undefined' || 
+                typeof DeviceOrientationEvent.requestPermission !== 'function') {
+                // iOS 13+ requires permission
+                window.addEventListener('deviceorientation', handleOrientation);
+                orientationAvailable = true;
+                statusDisplay.textContent = 'Compass active ✓';
+                statusDisplay.className = '';
+                return;
+            }
+
+            // iOS 13+ permission request
+            statusDisplay.textContent = 'Requesting compass access...';
+            statusDisplay.className = 'loading';
+
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                        orientationAvailable = true;
+                        statusDisplay.textContent = 'Compass active ✓';
+                        statusDisplay.className = '';
+                    } else {
+                        showError('Compass access denied. Please enable device orientation in your browser settings.');
+                    }
+                })
+                .catch((error) => {
+                    console.log('Orientation error:', error);
+                    showError('Could not access device orientation.');
+                });
+        }
+
+        // Handle device orientation
+        function handleOrientation(event) {
+            if (event.alpha !== null) {
+                // alpha is the compass direction (0-360)
+                deviceHeading = event.alpha;
+                updateArrow();
+            } else if (event.webkitCompassHeading !== undefined) {
+                // iOS Safari
+                deviceHeading = event.webkitCompassHeading;
+                updateArrow();
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            errorDisplay.textContent = message;
+            errorDisplay.classList.add('active');
+            statusDisplay.textContent = 'Error occurred';
+            statusDisplay.className = '';
+            
+            setTimeout(() => {
+                errorDisplay.classList.remove('active');
+            }, 5000);
+        }
+
+        // Start the app
+        function startApp() {
+            instructions.classList.add('hidden');
+            statusDisplay.textContent = 'Requesting permissions...';
+            statusDisplay.className = 'loading';
+
+            // Request all permissions
+            requestLocation();
+            requestCamera();
+            requestOrientation();
+
+            // Watch location for updates
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        userLat = position.coords.latitude;
+                        userLon = position.coords.longitude;
+                        qiblaBearing = calculateQiblaBearing(userLat, userLon, KAABA_LAT, KAABA_LON);
+                        updateArrow();
+                    },
+                    (error) => {
+                        console.log('Location watch error:', error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 60000
+                    }
+                );
+            }
+        }
+
+        // Initialize
+        startBtn.addEventListener('click', startApp);
+
+        // Handle page visibility (pause/resume)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Page is hidden, could pause updates
+            } else {
+                // Page is visible, refresh location if needed
+                if (userLat === null || userLon === null) {
+                    requestLocation();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
