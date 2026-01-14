@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.8.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.9.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -110,14 +110,12 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            display: block;
             z-index: 10;
             perspective: 2000px;
-            perspective-origin: center center;
+            perspective-origin: 50% 50%;
             transform-style: preserve-3d;
+            overflow: hidden;
         }
 
         #qiblaDome {
@@ -695,7 +693,7 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.8.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.9.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -732,9 +730,12 @@
         let userLat = null;
         let userLon = null;
         let deviceHeading = 0;
-        let deviceBeta = 0;  // Device tilt (front-back)
-        let deviceGamma = 0; // Device tilt (left-right)
+        let deviceBeta = 0;  // Device tilt (front-back, -180 to 180)
+        let deviceGamma = 0; // Device tilt (left-right, -90 to 90)
         let qiblaBearing = 0;
+        
+        // Debug flag (set to true to see console logs)
+        const DEBUG_AR = false;
         let cameraAvailable = false;
         let orientationAvailable = false;
         let locationAvailable = false;
@@ -923,44 +924,55 @@
             while (normalizedAngle > 180) normalizedAngle -= 360;
             while (normalizedAngle < -180) normalizedAngle += 360;
 
-            // AR positioning: Place window in 3D space at fixed distance in Qibla direction
-            // Convert angle to radians for calculations
+            // AR positioning: Place window in 3D space in the Qibla direction
+            // When you point camera toward Qibla, window appears in view
+            
+            // Fixed distance in 3D space (pixels)
+            const distance = 1800;
+            
+            // Convert angle to radians
             const angleRad = (normalizedAngle * Math.PI) / 180;
-            const betaRad = (deviceBeta * Math.PI) / 180;
-            const gammaRad = (deviceGamma * Math.PI) / 180;
             
-            // Fixed distance in 3D space (in pixels, adjusted for perspective)
-            const distance = 1500; // Distance from camera
+            // Calculate 3D position in Qibla direction
+            // X: horizontal offset (left/right)
+            // Z: depth (negative = away from camera, toward Qibla)
+            const x3d = Math.sin(angleRad) * distance;
+            const z3d = -Math.cos(angleRad) * distance; // Negative = in front
             
-            // Calculate 3D position based on Qibla direction
-            // X: horizontal position based on angle difference
-            // Y: vertical position based on device tilt
-            // Z: depth (distance from camera)
-            const x = Math.sin(angleRad) * distance;
-            const y = -Math.sin(betaRad) * distance * 0.5; // Adjust for device tilt
-            const z = -Math.cos(angleRad) * distance;
+            // Adjust Y based on device tilt
+            const betaRad = ((deviceBeta || 0) * Math.PI) / 180;
+            const y3d = Math.sin(betaRad) * distance * 0.25;
             
-            // Convert 3D position to screen coordinates
-            // Use perspective projection
-            const fov = 1000; // Field of view
-            const scale = fov / (fov + z);
+            // Perspective projection to screen coordinates
+            const fov = 1000;
+            const perspectiveScale = fov / (fov - z3d);
             
-            // Calculate screen position
-            const screenX = x * scale;
-            const screenY = y * scale;
+            // Project 3D to 2D screen
+            const screenX = (x3d / Math.abs(z3d)) * fov * 0.5;
+            const screenY = (y3d / Math.abs(z3d)) * fov * 0.5;
             
-            // Apply 3D transform to position window in AR space
-            // Rotate window to face camera
-            const rotateY = normalizedAngle;
-            const rotateX = -deviceBeta * 0.3; // Slight tilt based on device orientation
+            // Rotation to face camera
+            const rotateY = -normalizedAngle * 0.8;
+            const rotateX = (deviceBeta || 0) * 0.15;
             
-            qiblaDome.style.transform = `
-                translate(calc(-50% + ${screenX}px), calc(-50% + ${screenY}px))
-                translateZ(${z}px)
-                rotateY(${rotateY}deg)
-                rotateX(${rotateX}deg)
-                scale(${scale})
-            `;
+            // Apply transform
+            const scale = Math.max(0.3, Math.min(1.5, perspectiveScale));
+            qiblaDome.style.transform = `translate(calc(-50% + ${screenX}px), calc(-50% + ${screenY}px)) translateZ(${z3d}px) rotateY(${rotateY}deg) rotateX(${rotateX}deg) scale(${scale})`;
+            
+            // Debug logging
+            if (DEBUG_AR) {
+                console.log('AR Debug:', {
+                    normalizedAngle: normalizedAngle.toFixed(1),
+                    deviceHeading: deviceHeading.toFixed(1),
+                    qiblaBearing: qiblaBearing.toFixed(1),
+                    beta: deviceBeta.toFixed(1),
+                    gamma: deviceGamma.toFixed(1),
+                    screenX: screenX.toFixed(1),
+                    screenY: screenY.toFixed(1),
+                    z3d: z3d.toFixed(1),
+                    scale: scale.toFixed(2)
+                });
+            }
             
             // Update compass needle for fallback view
             compassNeedle.style.transform = `translate(-50%, -100%) rotate(${normalizedAngle}deg)`;
@@ -1167,18 +1179,19 @@
             }
             
             // Capture device tilt for AR positioning
-            if (event.beta !== null && event.beta !== undefined) {
+            if (event.beta !== null && event.beta !== undefined && !isNaN(event.beta)) {
                 deviceBeta = event.beta; // Front-back tilt (-180 to 180)
             }
-            if (event.gamma !== null && event.gamma !== undefined) {
+            if (event.gamma !== null && event.gamma !== undefined && !isNaN(event.gamma)) {
                 deviceGamma = event.gamma; // Left-right tilt (-90 to 90)
             }
             
             if (heading !== null && !isNaN(heading) && heading >= 0 && heading <= 360) {
                 deviceHeading = heading;
-                updateArrow();
-            } else if (event.beta !== null || event.gamma !== null) {
-                // Update even if heading not available, for tilt adjustments
+            }
+            
+            // Always update if we have any orientation data
+            if (heading !== null || event.beta !== null || event.gamma !== null) {
                 updateArrow();
             }
         }
