@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.3.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.4.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -137,26 +137,75 @@
             visibility: visible;
         }
 
-        #qiblaDome.clicked .dome-icon {
-            animation: domePulse 0.5s ease-out;
+        #qiblaDome.opened .dome-door-left {
+            transform: translateX(-100%) rotateY(-75deg);
         }
 
-        @keyframes domePulse {
-            0% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.2);
-            }
-            100% {
-                transform: scale(1);
-            }
+        #qiblaDome.opened .dome-door-right {
+            transform: translateX(100%) rotateY(75deg);
         }
 
-        #qiblaDome.clicked .dome-base,
-        #qiblaDome.clicked .dome-spire,
-        #qiblaDome.clicked .dome-crescent {
-            transition: background-color 0.3s ease, border-color 0.3s ease;
+        #qiblaDome.opened .makkah-image {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .dome-doors {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90px;
+            height: 68px;
+            perspective: 300px;
+            overflow: visible;
+        }
+
+        .dome-door-left,
+        .dome-door-right {
+            position: absolute;
+            bottom: 0;
+            width: 50%;
+            height: 100%;
+            background: #00ff88;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: bottom center;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+            backface-visibility: hidden;
+        }
+
+        .dome-door-left {
+            left: 0;
+            border-radius: 45px 0 0 0;
+        }
+
+        .dome-door-right {
+            right: 0;
+            border-radius: 0 45px 0 0;
+        }
+
+        .makkah-image {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90px;
+            height: 68px;
+            background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
+            background-image: url('https://images.unsplash.com/photo-1605540436563-5bca919ae766?w=400&h=300&fit=crop&q=80');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 45px 45px 0 0;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-out 0.3s, visibility 0s 0.8s;
+            z-index: -1;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        #qiblaDome.opened .makkah-image {
+            transition: opacity 0.5s ease-out 0.3s, visibility 0s 0s;
         }
 
         .dome-icon {
@@ -165,17 +214,6 @@
             position: relative;
         }
 
-        .dome-base {
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90px;
-            height: 68px;
-            background: #00ff88;
-            border-radius: 45px 45px 0 0;
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.8), 0 0 60px rgba(0, 255, 136, 0.5);
-        }
 
         .dome-spire {
             position: absolute;
@@ -494,9 +532,19 @@
                 height: 100px;
             }
 
-            .dome-base {
+            .dome-doors {
                 width: 75px;
                 height: 56px;
+            }
+
+            .makkah-image {
+                width: 75px;
+                height: 56px;
+            }
+
+            .dome-door-left,
+            .dome-door-right {
+                width: 50%;
             }
 
             .dome-spire {
@@ -573,7 +621,11 @@
                 <div class="dome-icon">
                     <div class="dome-spire"></div>
                     <div class="dome-crescent"></div>
-                    <div class="dome-base"></div>
+                    <div class="dome-doors">
+                        <div class="makkah-image"></div>
+                        <div class="dome-door-left"></div>
+                        <div class="dome-door-right"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -602,7 +654,7 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.3.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.4.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -663,8 +715,6 @@
         const searchResults = document.getElementById('searchResults');
         const useGPSBtn = document.getElementById('useGPSBtn');
         let selectedLocationName = null;
-        let domeClicked = false;
-        let domeColorState = 0; // 0 = green, 1 = blue, 2 = gold, back to 0
 
         // Calculate bearing from user location to Kaaba
         function calculateQiblaBearing(lat1, lon1, lat2, lon2) {
@@ -1077,49 +1127,14 @@
             requestGPSLocation();
         });
 
-        // Handle dome click
+        // Handle dome click - toggle doors open/close
         qiblaDome.addEventListener('click', () => {
-            // Add clicked class for animation
-            qiblaDome.classList.add('clicked');
-            
-            // Cycle through colors: green -> blue -> gold -> green
-            domeColorState = (domeColorState + 1) % 3;
-            
-            let newColor;
-            switch(domeColorState) {
-                case 0:
-                    newColor = '#00ff88'; // Green
-                    break;
-                case 1:
-                    newColor = '#4488ff'; // Blue
-                    break;
-                case 2:
-                    newColor = '#ffaa00'; // Gold
-                    break;
+            // Toggle opened state
+            if (qiblaDome.classList.contains('opened')) {
+                qiblaDome.classList.remove('opened');
+            } else {
+                qiblaDome.classList.add('opened');
             }
-            
-            // Update all dome parts
-            const domeBase = qiblaDome.querySelector('.dome-base');
-            const domeSpire = qiblaDome.querySelector('.dome-spire');
-            const domeCrescent = qiblaDome.querySelector('.dome-crescent');
-            
-            if (domeBase) {
-                domeBase.style.background = newColor;
-                domeBase.style.boxShadow = `0 0 30px ${newColor}88, 0 0 60px ${newColor}50`;
-            }
-            if (domeSpire) {
-                domeSpire.style.background = newColor;
-                domeSpire.style.boxShadow = `0 0 15px ${newColor}88`;
-            }
-            if (domeCrescent) {
-                domeCrescent.style.borderColor = newColor;
-                domeCrescent.style.boxShadow = `0 0 10px ${newColor}88`;
-            }
-            
-            // Remove animation class after animation completes
-            setTimeout(() => {
-                qiblaDome.classList.remove('clicked');
-            }, 500);
         });
 
         // Handle page visibility (pause/resume)
