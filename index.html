@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.1.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.2.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -125,7 +125,14 @@
             width: 80px;
             height: 80px;
             z-index: 20;
-            transition: transform 0.1s ease-out;
+            transition: transform 0.1s ease-out, opacity 0.3s ease-out;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #qiblaDome.visible {
+            opacity: 1;
+            visibility: visible;
         }
 
         .dome-icon {
@@ -567,11 +574,11 @@
         <div id="status" class="loading">Initializing...</div>
 
         <div id="disclaimer">
-            Compass accuracy depends on device calibration. For best results, calibrate your device's compass.
+            Compass accuracy depends on device calibration. For best results, calibrate your device's compass by moving it in a figure-8 pattern.
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.1.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.2.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -797,20 +804,19 @@
             while (normalizedAngle > 180) normalizedAngle -= 360;
             while (normalizedAngle < -180) normalizedAngle += 360;
 
-            // Position dome horizontally based on angle
-            // When facing Qibla (angle = 0), dome is centered
-            // When off to the left (negative angle), dome moves right (positive translateX)
-            // When off to the right (positive angle), dome moves left (negative translateX)
-            // Use viewport width to calculate offset - max offset is about 40% of screen width
-            const maxOffset = window.innerWidth * 0.4;
-            const horizontalOffset = (normalizedAngle / 180) * maxOffset;
+            // Show dome only when within 10 degrees of Qibla direction
+            const withinRange = Math.abs(normalizedAngle) <= 10;
             
-            // Also adjust vertical position slightly based on how close you are
-            // When very close to Qibla, move dome slightly up (appears closer)
-            const verticalOffset = Math.abs(normalizedAngle) < 10 ? -30 : 0;
-            
-            // Position the dome
-            qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px))`;
+            if (withinRange) {
+                // Show and center the dome when within range
+                qiblaDome.classList.add('visible');
+                // Center the dome (no horizontal offset when close)
+                const verticalOffset = -30; // Slightly up for better visibility
+                qiblaDome.style.transform = `translate(-50%, calc(-50% + ${verticalOffset}px))`;
+            } else {
+                // Hide the dome when outside the 10-degree range
+                qiblaDome.classList.remove('visible');
+            }
             
             // Update compass needle for fallback view
             compassNeedle.style.transform = `translate(-50%, -100%) rotate(${normalizedAngle}deg)`;
@@ -828,11 +834,18 @@
             currentDirectionFallback.textContent = currentDirectionText;
 
             // Update status
-            if (Math.abs(normalizedAngle) < 5) {
-                statusDisplay.textContent = '✓ You are facing Qibla!';
-                statusDisplay.style.color = '#00ff88';
+            if (withinRange) {
+                if (Math.abs(normalizedAngle) < 5) {
+                    statusDisplay.textContent = '✓ You are facing Qibla!';
+                    statusDisplay.style.color = '#00ff88';
+                } else {
+                    statusDisplay.textContent = '✓ You are close to Qibla - look for the green dome';
+                    statusDisplay.style.color = '#00ff88';
+                }
             } else {
-                statusDisplay.textContent = 'Turn to face the green dome';
+                // Calculate how many degrees off
+                const degreesOff = Math.round(Math.abs(normalizedAngle));
+                statusDisplay.textContent = `Turn ${degreesOff}° ${normalizedAngle > 0 ? 'right' : 'left'} to find Qibla`;
                 statusDisplay.style.color = '#fff';
             }
         }
@@ -930,47 +943,86 @@
         }
 
         // Request device orientation
+        let orientationHandler = null;
+        
         function requestOrientation() {
-            if (typeof DeviceOrientationEvent === 'undefined' || 
-                typeof DeviceOrientationEvent.requestPermission !== 'function') {
-                // iOS 13+ requires permission
-                window.addEventListener('deviceorientation', handleOrientation);
+            // Remove existing listener if any
+            if (orientationHandler) {
+                window.removeEventListener('deviceorientation', orientationHandler);
+            }
+            
+            orientationHandler = handleOrientation;
+            
+            if (typeof DeviceOrientationEvent === 'undefined') {
+                showError('Device orientation is not supported by your browser.');
+                return;
+            }
+            
+            // Check if we need to request permission (iOS 13+)
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // iOS 13+ permission request
+                statusDisplay.textContent = 'Requesting compass access...';
+                statusDisplay.className = 'loading';
+
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            window.addEventListener('deviceorientation', orientationHandler);
+                            orientationAvailable = true;
+                            statusDisplay.textContent = 'Compass active ✓';
+                            statusDisplay.className = '';
+                        } else {
+                            showError('Compass access denied. Please enable device orientation in your browser settings.');
+                        }
+                    })
+                    .catch((error) => {
+                        console.log('Orientation error:', error);
+                        showError('Could not access device orientation.');
+                    });
+            } else {
+                // Android/Chrome - add listener directly
+                window.addEventListener('deviceorientation', orientationHandler);
                 orientationAvailable = true;
                 statusDisplay.textContent = 'Compass active ✓';
                 statusDisplay.className = '';
-                return;
             }
-
-            // iOS 13+ permission request
-            statusDisplay.textContent = 'Requesting compass access...';
-            statusDisplay.className = 'loading';
-
-            DeviceOrientationEvent.requestPermission()
-                .then(response => {
-                    if (response === 'granted') {
-                        window.addEventListener('deviceorientation', handleOrientation);
-                        orientationAvailable = true;
-                        statusDisplay.textContent = 'Compass active ✓';
-                        statusDisplay.className = '';
-                    } else {
-                        showError('Compass access denied. Please enable device orientation in your browser settings.');
-                    }
-                })
-                .catch((error) => {
-                    console.log('Orientation error:', error);
-                    showError('Could not access device orientation.');
-                });
         }
 
         // Handle device orientation
         function handleOrientation(event) {
-            if (event.alpha !== null) {
-                // alpha is the compass direction (0-360)
-                deviceHeading = event.alpha;
-                updateArrow();
-            } else if (event.webkitCompassHeading !== undefined) {
-                // iOS Safari
-                deviceHeading = event.webkitCompassHeading;
+            let heading = null;
+            
+            // iOS Safari - use webkitCompassHeading (most reliable, already calibrated)
+            if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
+                heading = event.webkitCompassHeading;
+            }
+            // Android/Chrome - use alpha for compass heading
+            else if (event.alpha !== null && event.alpha !== undefined) {
+                // Check if we have absolute orientation (relative to Earth's coordinate system)
+                if (event.absolute === true) {
+                    // alpha is the compass heading (0-360, clockwise from north)
+                    heading = event.alpha;
+                } else {
+                    // Relative orientation - alpha is relative to device's initial orientation
+                    // On many Android devices, even without absolute=true, alpha can still be used
+                    // but we need to account for device orientation
+                    // For portrait mode, alpha should work directly
+                    // For landscape, we might need adjustment
+                    const screenOrientation = window.orientation || 0;
+                    
+                    if (screenOrientation === 0 || screenOrientation === 180) {
+                        // Portrait mode - alpha should be correct
+                        heading = event.alpha;
+                    } else {
+                        // Landscape mode - may need adjustment
+                        // Try using alpha directly first
+                        heading = event.alpha;
+                    }
+                }
+            }
+            
+            if (heading !== null && !isNaN(heading) && heading >= 0 && heading <= 360) {
+                deviceHeading = heading;
                 updateArrow();
             }
         }
