@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.6.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.7.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -127,17 +127,12 @@
             height: 120vh;
             max-height: 1000px;
             z-index: 20;
-            transition: transform 0.1s ease-out, opacity 0.3s ease-out;
-            opacity: 0;
-            visibility: hidden;
+            transition: transform 0.2s ease-out;
+            opacity: 1;
+            visibility: visible;
             cursor: pointer;
             touch-action: manipulation;
             perspective: 2000px;
-        }
-
-        #qiblaDome.visible {
-            opacity: 1;
-            visibility: visible;
         }
 
         .window-frame {
@@ -697,7 +692,7 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.6.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.7.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -923,26 +918,25 @@
             while (normalizedAngle > 180) normalizedAngle -= 360;
             while (normalizedAngle < -180) normalizedAngle += 360;
 
-            // Show window only when within 10 degrees of Qibla direction
-            const withinRange = Math.abs(normalizedAngle) <= 10;
+            // Always show the window, positioned in the Qibla direction
+            // Position window based on the angle difference
+            // If Qibla is to the right (positive angle), window appears on the right
+            // If Qibla is to the left (negative angle), window appears on the left
+            // Use viewport dimensions to position in 3D space
+            const maxHorizontalOffset = Math.min(window.innerWidth, window.innerHeight) * 0.4;
+            const maxVerticalOffset = Math.min(window.innerWidth, window.innerHeight) * 0.3;
             
-            if (withinRange) {
-                // Show the window when within range
-                qiblaDome.classList.add('visible');
-                
-                // Position window at the Qibla direction (center aligns with Qibla)
-                // Calculate position based on normalized angle
-                // Use viewport dimensions to position in 3D space
-                const maxOffset = Math.min(window.innerWidth, window.innerHeight) * 0.25;
-                const horizontalOffset = (normalizedAngle / 10) * maxOffset * 0.3; // Smaller offset since we're close
-                const verticalOffset = -20; // Position slightly up for better visibility
-                
-                // Apply transform with perspective to make it appear far away and very large
-                qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px)) perspective(2000px) translateZ(-1200px) scale(3.5)`;
-            } else {
-                // Hide the window when outside the 10-degree range
-                qiblaDome.classList.remove('visible');
-            }
+            // Calculate horizontal offset: positive angle = right, negative = left
+            // Map -180 to 180 degrees to -maxOffset to +maxOffset
+            const horizontalOffset = (normalizedAngle / 180) * maxHorizontalOffset;
+            
+            // Calculate vertical offset based on how far off we are
+            // When facing Qibla (angle = 0), window is centered vertically
+            // When far off, window appears slightly lower
+            const verticalOffset = -30 - (Math.abs(normalizedAngle) / 180) * 20;
+            
+            // Apply transform with perspective to make it appear far away and very large
+            qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px)) perspective(2000px) translateZ(-1200px) scale(3.5)`;
             
             // Update compass needle for fallback view
             compassNeedle.style.transform = `translate(-50%, -100%) rotate(${normalizedAngle}deg)`;
@@ -960,18 +954,19 @@
             currentDirectionFallback.textContent = currentDirectionText;
 
             // Update status
+            const withinRange = Math.abs(normalizedAngle) <= 25;
             if (withinRange) {
                 if (Math.abs(normalizedAngle) < 5) {
                     statusDisplay.textContent = '✓ You are facing Qibla!';
                     statusDisplay.style.color = '#00ff88';
                 } else {
-                    statusDisplay.textContent = '✓ You are close to Qibla - look for the window';
+                    statusDisplay.textContent = '✓ You are close to Qibla - look at the window';
                     statusDisplay.style.color = '#00ff88';
                 }
             } else {
                 // Calculate how many degrees off
                 const degreesOff = Math.round(Math.abs(normalizedAngle));
-                statusDisplay.textContent = `Turn ${degreesOff}° ${normalizedAngle > 0 ? 'right' : 'left'} to find Qibla`;
+                statusDisplay.textContent = `Turn ${degreesOff}° ${normalizedAngle > 0 ? 'right' : 'left'} to face Qibla - window shows the direction`;
                 statusDisplay.style.color = '#fff';
             }
         }
