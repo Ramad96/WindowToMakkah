@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.4.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.5.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -121,15 +121,18 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            width: 120px;
-            height: 120px;
+            transform: translate(-50%, -50%) perspective(2000px) translateZ(-800px) scale(2.5);
+            width: 80%;
+            max-width: 600px;
+            height: 60vh;
+            max-height: 500px;
             z-index: 20;
             transition: transform 0.1s ease-out, opacity 0.3s ease-out;
             opacity: 0;
             visibility: hidden;
             cursor: pointer;
             touch-action: manipulation;
+            perspective: 2000px;
         }
 
         #qiblaDome.visible {
@@ -137,107 +140,102 @@
             visibility: visible;
         }
 
-        #qiblaDome.opened .dome-door-left {
-            transform: translateX(-100%) rotateY(-75deg);
+        .window-frame {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            border: 8px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            backdrop-filter: blur(20px);
+            box-shadow: 
+                0 0 40px rgba(0, 255, 136, 0.4),
+                inset 0 0 60px rgba(255, 255, 255, 0.1),
+                0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
         }
 
-        #qiblaDome.opened .dome-door-right {
-            transform: translateX(100%) rotateY(75deg);
+        .window-glass {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%),
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.03) 2px,
+                    rgba(255, 255, 255, 0.03) 4px
+                );
+            backdrop-filter: blur(15px);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .window-doors {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+        }
+
+        .window-door-left,
+        .window-door-right {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border-right: 4px solid rgba(255, 255, 255, 0.2);
+            transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: left center;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .window-door-right {
+            right: 0;
+            left: auto;
+            border-right: none;
+            border-left: 4px solid rgba(255, 255, 255, 0.2);
+            transform-origin: right center;
+        }
+
+        #qiblaDome.opened .window-door-left {
+            transform: translateX(-100%) rotateY(-90deg);
+        }
+
+        #qiblaDome.opened .window-door-right {
+            transform: translateX(100%) rotateY(90deg);
+        }
+
+        .makkah-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
+            background-image: url('https://images.unsplash.com/photo-1605540436563-5bca919ae766?w=800&h=600&fit=crop&q=90');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s ease-out 0.4s, visibility 0s 1.2s;
+            z-index: 1;
+            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3);
         }
 
         #qiblaDome.opened .makkah-image {
             opacity: 1;
             visibility: visible;
-        }
-
-        .dome-doors {
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90px;
-            height: 68px;
-            perspective: 300px;
-            overflow: visible;
-        }
-
-        .dome-door-left,
-        .dome-door-right {
-            position: absolute;
-            bottom: 0;
-            width: 50%;
-            height: 100%;
-            background: #00ff88;
-            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-origin: bottom center;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
-            backface-visibility: hidden;
-        }
-
-        .dome-door-left {
-            left: 0;
-            border-radius: 45px 0 0 0;
-        }
-
-        .dome-door-right {
-            right: 0;
-            border-radius: 0 45px 0 0;
-        }
-
-        .makkah-image {
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90px;
-            height: 68px;
-            background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
-            background-image: url('https://images.unsplash.com/photo-1605540436563-5bca919ae766?w=400&h=300&fit=crop&q=80');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            border-radius: 45px 45px 0 0;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.5s ease-out 0.3s, visibility 0s 0.8s;
-            z-index: -1;
-            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
-        }
-
-        #qiblaDome.opened .makkah-image {
-            transition: opacity 0.5s ease-out 0.3s, visibility 0s 0s;
-        }
-
-        .dome-icon {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-
-        .dome-spire {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 12px;
-            height: 30px;
-            background: #00ff88;
-            border-radius: 6px 6px 0 0;
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.8);
-        }
-
-        .dome-crescent {
-            position: absolute;
-            top: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 30px;
-            height: 30px;
-            border: 4px solid #00ff88;
-            border-bottom: none;
-            border-radius: 30px 30px 0 0;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+            transition: opacity 0.8s ease-out 0.4s, visibility 0s 0s;
         }
 
         #infoPanel {
@@ -532,31 +530,6 @@
                 height: 100px;
             }
 
-            .dome-doors {
-                width: 75px;
-                height: 56px;
-            }
-
-            .makkah-image {
-                width: 75px;
-                height: 56px;
-            }
-
-            .dome-door-left,
-            .dome-door-right {
-                width: 50%;
-            }
-
-            .dome-spire {
-                width: 10px;
-                height: 25px;
-            }
-
-            .dome-crescent {
-                width: 25px;
-                height: 25px;
-                border-width: 3px;
-            }
 
             #locationInput {
                 font-size: 14px;
@@ -618,13 +591,12 @@
 
         <div id="overlay">
             <div id="qiblaDome">
-                <div class="dome-icon">
-                    <div class="dome-spire"></div>
-                    <div class="dome-crescent"></div>
-                    <div class="dome-doors">
-                        <div class="makkah-image"></div>
-                        <div class="dome-door-left"></div>
-                        <div class="dome-door-right"></div>
+                <div class="window-frame">
+                    <div class="makkah-image"></div>
+                    <div class="window-glass"></div>
+                    <div class="window-doors">
+                        <div class="window-door-left"></div>
+                        <div class="window-door-right"></div>
                     </div>
                 </div>
             </div>
@@ -654,7 +626,7 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.4.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.5.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -880,24 +852,24 @@
             while (normalizedAngle > 180) normalizedAngle -= 360;
             while (normalizedAngle < -180) normalizedAngle += 360;
 
-            // Show dome only when within 10 degrees of Qibla direction
+            // Show window only when within 10 degrees of Qibla direction
             const withinRange = Math.abs(normalizedAngle) <= 10;
             
             if (withinRange) {
-                // Show the dome when within range
+                // Show the window when within range
                 qiblaDome.classList.add('visible');
                 
-                // Position dome at the Qibla direction (center aligns with Qibla)
+                // Position window at the Qibla direction (center aligns with Qibla)
                 // Calculate position based on normalized angle
                 // Use viewport dimensions to position in 3D space
-                const maxOffset = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+                const maxOffset = Math.min(window.innerWidth, window.innerHeight) * 0.25;
                 const horizontalOffset = (normalizedAngle / 10) * maxOffset * 0.3; // Smaller offset since we're close
-                const verticalOffset = -40; // Position slightly up for better visibility
+                const verticalOffset = -20; // Position slightly up for better visibility
                 
-                // Apply transform - animation will temporarily override during click
-                qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px))`;
+                // Apply transform with perspective to make it appear far away and large
+                qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px)) perspective(2000px) translateZ(-800px) scale(2.5)`;
             } else {
-                // Hide the dome when outside the 10-degree range
+                // Hide the window when outside the 10-degree range
                 qiblaDome.classList.remove('visible');
             }
             
@@ -922,7 +894,7 @@
                     statusDisplay.textContent = '✓ You are facing Qibla!';
                     statusDisplay.style.color = '#00ff88';
                 } else {
-                    statusDisplay.textContent = '✓ You are close to Qibla - look for the green dome';
+                    statusDisplay.textContent = '✓ You are close to Qibla - look for the window';
                     statusDisplay.style.color = '#00ff88';
                 }
             } else {
