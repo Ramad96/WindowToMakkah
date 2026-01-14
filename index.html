@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Qibla Finder v1.7.0 - Window to Makkah</title>
+    <title>Qibla Finder v1.8.0 - Window to Makkah</title>
     <style>
         * {
             margin: 0;
@@ -109,30 +109,33 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 10;
+            perspective: 2000px;
+            perspective-origin: center center;
+            transform-style: preserve-3d;
         }
 
         #qiblaDome {
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) perspective(2000px) translateZ(-1200px) scale(3.5);
-            width: 150%;
-            max-width: 1200px;
-            height: 120vh;
-            max-height: 1000px;
+            width: 80vw;
+            max-width: 800px;
+            height: 60vh;
+            max-height: 600px;
             z-index: 20;
-            transition: transform 0.2s ease-out;
+            transition: transform 0.1s linear;
             opacity: 1;
             visibility: visible;
             cursor: pointer;
             touch-action: manipulation;
-            perspective: 2000px;
+            transform-style: preserve-3d;
+            will-change: transform;
         }
 
         .window-frame {
@@ -692,7 +695,7 @@
         </div>
 
         <div id="instructions">
-            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.7.0</span></h2>
+            <h2>Qibla Finder <span style="font-size: 0.7em; color: rgba(255, 255, 255, 0.6); font-weight: normal;">v1.8.0</span></h2>
             <p>Choose your location:</p>
             
             <div class="location-option">
@@ -729,6 +732,8 @@
         let userLat = null;
         let userLon = null;
         let deviceHeading = 0;
+        let deviceBeta = 0;  // Device tilt (front-back)
+        let deviceGamma = 0; // Device tilt (left-right)
         let qiblaBearing = 0;
         let cameraAvailable = false;
         let orientationAvailable = false;
@@ -904,7 +909,7 @@
             }
         });
 
-        // Update dome position
+        // Update AR window position
         function updateArrow() {
             if (userLat === null || userLon === null) return;
 
@@ -918,25 +923,44 @@
             while (normalizedAngle > 180) normalizedAngle -= 360;
             while (normalizedAngle < -180) normalizedAngle += 360;
 
-            // Always show the window, positioned in the Qibla direction
-            // Position window based on the angle difference
-            // If Qibla is to the right (positive angle), window appears on the right
-            // If Qibla is to the left (negative angle), window appears on the left
-            // Use viewport dimensions to position in 3D space
-            const maxHorizontalOffset = Math.min(window.innerWidth, window.innerHeight) * 0.4;
-            const maxVerticalOffset = Math.min(window.innerWidth, window.innerHeight) * 0.3;
+            // AR positioning: Place window in 3D space at fixed distance in Qibla direction
+            // Convert angle to radians for calculations
+            const angleRad = (normalizedAngle * Math.PI) / 180;
+            const betaRad = (deviceBeta * Math.PI) / 180;
+            const gammaRad = (deviceGamma * Math.PI) / 180;
             
-            // Calculate horizontal offset: positive angle = right, negative = left
-            // Map -180 to 180 degrees to -maxOffset to +maxOffset
-            const horizontalOffset = (normalizedAngle / 180) * maxHorizontalOffset;
+            // Fixed distance in 3D space (in pixels, adjusted for perspective)
+            const distance = 1500; // Distance from camera
             
-            // Calculate vertical offset based on how far off we are
-            // When facing Qibla (angle = 0), window is centered vertically
-            // When far off, window appears slightly lower
-            const verticalOffset = -30 - (Math.abs(normalizedAngle) / 180) * 20;
+            // Calculate 3D position based on Qibla direction
+            // X: horizontal position based on angle difference
+            // Y: vertical position based on device tilt
+            // Z: depth (distance from camera)
+            const x = Math.sin(angleRad) * distance;
+            const y = -Math.sin(betaRad) * distance * 0.5; // Adjust for device tilt
+            const z = -Math.cos(angleRad) * distance;
             
-            // Apply transform with perspective to make it appear far away and very large
-            qiblaDome.style.transform = `translate(calc(-50% + ${horizontalOffset}px), calc(-50% + ${verticalOffset}px)) perspective(2000px) translateZ(-1200px) scale(3.5)`;
+            // Convert 3D position to screen coordinates
+            // Use perspective projection
+            const fov = 1000; // Field of view
+            const scale = fov / (fov + z);
+            
+            // Calculate screen position
+            const screenX = x * scale;
+            const screenY = y * scale;
+            
+            // Apply 3D transform to position window in AR space
+            // Rotate window to face camera
+            const rotateY = normalizedAngle;
+            const rotateX = -deviceBeta * 0.3; // Slight tilt based on device orientation
+            
+            qiblaDome.style.transform = `
+                translate(calc(-50% + ${screenX}px), calc(-50% + ${screenY}px))
+                translateZ(${z}px)
+                rotateY(${rotateY}deg)
+                rotateX(${rotateX}deg)
+                scale(${scale})
+            `;
             
             // Update compass needle for fallback view
             compassNeedle.style.transform = `translate(-50%, -100%) rotate(${normalizedAngle}deg)`;
@@ -1142,8 +1166,19 @@
                 }
             }
             
+            // Capture device tilt for AR positioning
+            if (event.beta !== null && event.beta !== undefined) {
+                deviceBeta = event.beta; // Front-back tilt (-180 to 180)
+            }
+            if (event.gamma !== null && event.gamma !== undefined) {
+                deviceGamma = event.gamma; // Left-right tilt (-90 to 90)
+            }
+            
             if (heading !== null && !isNaN(heading) && heading >= 0 && heading <= 360) {
                 deviceHeading = heading;
+                updateArrow();
+            } else if (event.beta !== null || event.gamma !== null) {
+                // Update even if heading not available, for tilt adjustments
                 updateArrow();
             }
         }
